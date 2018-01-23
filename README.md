@@ -1,4 +1,4 @@
-## Satellite 6 Disconnected Notes
+## Satellite 6 Disconnected Operations Guide
 
 This repository contains notes on setting up Satellite 6 in disconnected mode
 
