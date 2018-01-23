@@ -2,6 +2,9 @@
 
 This guide provides guidance as to how a user of Red Hat Satellite 6 can setup a Satellite installation to support a disconnected.
 
+## Version Support
+
+This document has been developed on Satellite 6.3 (Beta). It _should_ work with Satellite 6.2 with minor tweaks.
 
 ## Intended Audience
 
@@ -74,8 +77,186 @@ Subscription | Quantity | Purpose
 -------- | -------- | --------
 MCT1650 - Red Hat Satellite Starter Pack | 1| Internet Connected Satellite for exporting content.
 MCT0370 - Red Hat Satellite | 1 | Disconnected Satellite
-RH00008 - Red Hat Enterprise Linux with Smart Management (Physical or VirtualNodes) | 50 | RHEL + Smart Management Subscriptions for the managed Nodes. 
+RH00008 - Red Hat Enterprise Linux with Smart Management (Physical or VirtualNodes) | 50 | RHEL + Smart Management Subscriptions for the managed Nodes.
 
-Note: THe RH00008 Subscriptions are example, and indicative of the deploy. Your subscriptions will vary. (It is only the Satellite subscriptions that matter.)
+Note: As the internet connected Satellite is only being used to sync/export content, Darell opted to get a Satellite Starter Pack, which is lower cost. Also, the RH00008 Subscriptions are example, and indicative of the deploy. Your subscriptions will vary. (It is only the Satellite subscriptions that matter.)
 
 
+
+### Changes to the standard installation.
+
+Satellites which will be used to export content have different disk space & partitioning requirements than usual.  Of note are the `/var/cache/pulp` and `/var/lib/pulp/katello-export` directories.
+
+The `/var/cache/pulp` directory is used as transient space for exporting content. It needs to be sized as large as the largest content export. If exporting content to ISO, this needs to be sized **twice** as large as the largest content export.
+
+Example: If a repository with 40GB in content needs to be exported, `/var/cache/pulp` needs to be 40GB in size. If this same repository is exported to ISO, 80GB is required in `/var/cache/pulp`
+
+The `/var/lib/pulp/katello-export` directory is the final storage location for all exported content. This directory needs to be sized as large as the largest content export. Example: If a repository with 40GB in content needs to be exported, `/var/lib/pulp/katello-export` needs to be 40GB in size.
+
+ This directory can be changed if necessary:
+
+- In the UI, changing the pulp_export_destination option, under Administer->Settings->Katello.
+- via Hammer `hammer settings set --name pulp_export_destination --value /var/www/html/pub/exports/``
+
+
+
+### Creating Subscription Manifests.
+
+In our example above, Darrell Disconnected has the following subscriptions associated with his account.
+
+Subscription | Quantity | Purpose
+-------- | -------- | --------
+MCT1650 - Red Hat Satellite Starter Pack | 1| Internet Connected Satellite for exporting content.
+MCT0370 - Red Hat Satellite | 1 | Disconnected Satellite
+RH00008 - Red Hat Enterprise Linux with Smart Management (Physical or VirtualNodes) | 50 | RHEL + Smart Management Subscriptions for the managed Nodes.
+
+
+<INSERT IMAGE>
+
+Firstly, we'd head over to the [subscription allocations](https://access.redhat.com/management/subscription_allocations) page to generate a subscription manifest.
+
+We'll add the **Red Hat Satellite** subscriptions and the **Red Hat Enterprise Linux** subscriptions to the allocation, by selecting the **subscriptions** tab -> **add subscriptions**. If you have other subscriptions that you wish to use in the disconnected environment, add those here as well.
+
+
+Note: we are **NOT** adding the **Red Hat Satellite Starter Pack** subscription.  This will be used by the connected Satellite to register to Red Hat Subscription Management (RHSM) for errata and software.  
+
+<INSERT IMAGE>
+
+Lastly, download the subscription manifest
+
+
+### Building the connected Satellite
+
+It is expected that the connected Satellite is built as per the specifications in the Installation Guide, taking into account the _Changes to the standard installation_ section above.
+
+For the purposes of this example, our connected Satellite will be named `connected.example.com`
+
+Firstly, let's register the Satellite to the Customer Portal
+
+~~~
+[root@connnected ~]# subscription-manager register
+Registering to: subscription.rhsm.redhat.com:443/subscription
+Username: [REDACTED]
+Password:
+The system has been registered with ID: b9da2597-34db-40ca-a400-2c1e9741d846
+~~~
+
+Next, find the Satellite Starter pack subscription
+
+~~~
+[root@connnected ~]# subscription-manager list --all --available --matches '*Red Hat Satellite Starter Pack*'
++-------------------------------------------+
+    Available Subscriptions
++-------------------------------------------+
+Subscription Name:   Red Hat Satellite Starter Pack (manage up to 50 RHEL Instances)
+Provides:            Red Hat Satellite Capsule Beta
+                     Red Hat Software Collections (for RHEL Server)
+                     Red Hat Satellite Capsule
+                     Red Hat Satellite with Embedded Oracle
+                     Red Hat Beta
+                     Red Hat Satellite Beta
+                     Red Hat Satellite 6 Beta
+                     Red Hat Satellite 5 Managed DB Beta
+                     Red Hat Enterprise Linux Server
+                     Red Hat Enterprise Linux High Availability (for RHEL Server)
+                     Red Hat Satellite
+                     Red Hat Software Collections Beta (for RHEL Server)
+                     Red Hat Satellite 5 Managed DB
+                     Red Hat Enterprise Linux Load Balancer (for RHEL Server)
+SKU:                 MCT1650
+Contract:            11528077
+Pool ID:             8a99f98261217cc5016122bc17bd0d5d
+Provides Management: Yes
+Available:           1
+Suggested:           1
+Service Level:       Premium
+Service Type:        L1-L3
+Subscription Type:   Standard
+Ends:                01/22/2019
+System Type:         Physical
+~~~
+
+And attach it:
+
+~~~
+[root@connnected ~]# subscription-manager attach --pool=8a99f98261217cc5016122bc17bd0d5d
+Successfully attached a subscription for: Red Hat Satellite Starter Pack (manage up to 50 RHEL Instances)
+~~~
+
+Next, let's setup our repositories
+
+~~~
+
+subscription-manager repos --disable "*"
+subscription-manager repos  \
+  --enable=rhel-7-server-rpms \
+  --enable=rhel-server-rhscl-7-rpms \
+  --enable=rhel-server-7-satellite-6-beta-rpms \
+  --enable rhel-7-server-satellite-maintenance-6-rpms
+subscription-manager release --unset
+
+
+~~~
+
+And install the Satellite software and `foreman-maintain`, the Satellite maintenance tool.
+
+~~~
+yum clean all
+yum makecache
+yum install satellite -y
+yum install rubygem-foreman_maintain -y
+yum update -y
+~~~
+
+Next we'll install Satellite, setting our default organization to **RedHat**, default location to **RDU** and default admin password to **redhat** (adjust to your needs)
+~~~
+satellite-installer --scenario satellite -v \
+  --foreman-initial-organization RedHat \
+  --foreman-initial-location RDU \
+  --foreman-admin-password redhat
+~~~
+
+Next, we'll setup our `.bashrc` and hammer config, so that we don't have to provide these parameters on every invocation of the CLI.
+
+~~~
+echo "ORG=RedHat" >> ~/.bashrc
+echo "LOCATION=RDU" >> ~/.bashrc
+echo "DOMAIN=example.com" >> ~/.bashrc
+echo "SATELLITE=$(hostname -f)" >> ~/.bashrc
+source ~/.bashrc
+
+mkdir ~/.hammer/
+cat > ~/.hammer/cli_config.yml<<EOF
+:foreman:
+    :host: 'https://$(hostname)/'
+    :username: 'admin'
+    :password: 'redhat'
+
+EOF
+
+~~~
+
+
+Next, copy the subscription manifest to the Satellite. Then import it:
+~~~
+hammer subscription upload --organization "$ORG" --file /root/manifest.zip
+~~~
+
+Update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. This ensures that all of the content needed for our content exports is synchronized prior to our exports. If the policy is set to `on_demand` (Satellite 6.3's default) or `background`, the content export will be delayed until all of the remaining RPMs are downloaded from the CDN. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
+
+~~~
+hammer settings set --name default_download_policy --value immediate
+~~~
+
+Also, for our Satellite `connected.example.com`, we have a dedicated partition `/exports`, which we are using for content exports. We'll need to update Satellite to use this directory:
+
+~~~
+hammer settings set --name pulp_export_destination --value /exports/
+~~~
+
+And make sure the SELinux contexts and permissions are correct.
+~~~
+chcon --verbose --recursive --reference /var/lib/pulp/katello-export/ /exports/
+chmod --verbose --recursive --reference /var/lib/pulp/katello-export/ /exports/
+chown --verbose --recursive --reference /var/lib/pulp/katello-export/ /exports/
+~~~
