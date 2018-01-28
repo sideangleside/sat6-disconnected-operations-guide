@@ -45,11 +45,22 @@ There are two major mechanisms that can be used to acquire Red Hat content, **Co
 
 Content ISOs can be downloaded from the REd Hat Customer Portal (Insert Link). Content ISOs are periodic snapshots of a product's repositories, made on a scheduled basis (usually every quarter give or take). Content ISOs can be downloaded from the customer portal, extracted and used to populate a disconnected Satellite.
 
-(PUT DIAGRAM HERE)
+![alt text](./images/Sat6 Disconnected with Content ISOs.png "Content ISO download")
+
+In this scenario, the user would
+
+1. download content ISOs from the customer portal (insert Link) to a workstation.
+2. burn the content ISOs to CD or DVD.
+3. transit those ISOs into their disconnected environment and import it into a Satellite
 
 Alternatively, a user can deploy a Satellite which *is* able to connect to cdn.redhat.com and use that Satellite to export Content suitable for importing into another Satellite which is disconnected.  
 
-(PUT DIAGRAM HERE)
+![alt text](./images/Sat6 Disconnected with Connected Satellite.png "Content ISO download")
+
+In this scenario, the user would
+1. synchronize products for which they have a valid subscription for to their internet connected satellite.
+2. Export that content using the Inter-Satellite-Sync Feature
+3. transit that content to the disconnected Satellite (by either exporting to CD/DVD ISO OR by a disk export)
 
 There are pros & cons to each approach
 
@@ -87,7 +98,7 @@ Note: As the internet connected Satellite is only being used to sync/export cont
 
 Satellites which will be used to export content have different disk space & partitioning requirements than usual.  Of note are the `/var/cache/pulp` and `/var/lib/pulp/katello-export` directories.
 
-The `/var/cache/pulp` directory is used as transient space for exporting content. It needs to be sized as large as the largest content export. If exporting content to ISO, this needs to be sized **twice** as large as the largest content export.
+The `/var/cache/pulp` directory is used as transient space for both importing **AND** exporting content. It needs to be sized as large as the largest content export. If exporting content to ISO, this needs to be sized **twice** as large as the largest content export.
 
 Example: If a repository with 40GB in content needs to be exported, `/var/cache/pulp` needs to be 40GB in size. If this same repository is exported to ISO, 80GB is required in `/var/cache/pulp`
 
@@ -119,10 +130,15 @@ We'll add the **Red Hat Satellite** subscriptions and the **Red Hat Enterprise L
 
 
 Note: we are **NOT** adding the **Red Hat Satellite Starter Pack** subscription.  This will be used by the connected Satellite to register to Red Hat Subscription Management (RHSM) for errata and software.  
+![alt text](./images/add_sub_to_manifest.png "Adding Subscription to Manifest")
+
 
 <INSERT IMAGE>
 
-Lastly, download the subscription manifest
+Lastly, download the subscription manifest:
+
+![alt text](./images/download_manifest.png "Downloading Manifest")
+
 
 
 ### Building the connected Satellite
@@ -242,7 +258,7 @@ Next, copy the subscription manifest to the Satellite. Then import it:
 hammer subscription upload --organization "$ORG" --file /root/manifest.zip
 ~~~
 
-Update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. This ensures that all of the content needed for our content exports is synchronized prior to our exports. If the policy is set to `on_demand` (Satellite 6.3's default) or `background`, the content export will be delayed until all of the remaining RPMs are downloaded from the CDN. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
+Next,we'll update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. This ensures that all of the content needed for our content exports is synchronized prior to our exports. If the policy is set to `on_demand` (Satellite 6.3's default) or `background`, the content export will be delayed until all of the remaining RPMs are downloaded from the CDN. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
 
 ~~~
 hammer settings set --name default_download_policy --value immediate
