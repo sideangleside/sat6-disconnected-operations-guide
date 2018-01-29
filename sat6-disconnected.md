@@ -46,7 +46,7 @@ There are two major mechanisms that can be used to acquire Red Hat content, **Co
 
 Content ISOs can be downloaded from the REd Hat Customer Portal (Insert Link). Content ISOs are periodic snapshots of a product's repositories, made on a scheduled basis (usually every quarter give or take). Content ISOs can be downloaded from the customer portal, extracted and used to populate a disconnected Satellite.
 
-![alt text](./images/Sat6_Disconnected_with_Content_ISOs.png "Content ISO download")
+![alt text](https://github.com/sideangleside/sat6-disconnected-operations-guide/raw/master/images/Sat6_Disconnected_with_Content_ISOs.png "Content ISO download")
 
 In this scenario, the user would
 
@@ -56,7 +56,7 @@ In this scenario, the user would
 
 Alternatively, a user can deploy a Satellite which *is* able to connect to cdn.redhat.com and use that Satellite to export Content suitable for importing into another Satellite which is disconnected.  
 
-![alt text](./images/Sat6_Disconnected_with_Connected_Satellite.png "Content ISO download")
+![alt text](https://github.com/sideangleside/sat6-disconnected-operations-guide/raw/master/images/Sat6_Disconnected_with_Connected_Satellite.png "Disconnected Satellite with Connected Satellite")
 
 In this scenario, the user would
 1. synchronize products for which they have a valid subscription for to their internet connected satellite.
@@ -132,12 +132,12 @@ We'll add the **Red Hat Satellite** subscriptions and the **Red Hat Enterprise L
 
 Note: we are **NOT** adding the **Red Hat Satellite Starter Pack** subscription.  This will be used by the connected Satellite to register to Red Hat Subscription Management (RHSM) for errata and software.  
 
-![alt text](./images/add_sub_to_manifest.png "Adding Subscription to Manifest")
+![alt text](https://github.com/sideangleside/sat6-disconnected-operations-guide/raw/master/images/add_sub_to_manifest.png "Adding Subscription to Manifest")
 
 
 Lastly, download the subscription manifest:
 
-![alt text](./images/download_manifest.png "Downloading Manifest")
+![alt text](https://github.com/sideangleside/sat6-disconnected-operations-guide/raw/master/images/download_manifest.png "Downloading Manifest")
 
 
 
@@ -651,4 +651,4 @@ This is the preferred way to export Red Hat content for usage with another Satel
 
 If you'd wanted to create (for example) two content views, one representing a filtered build of RHEL6, and another representing a filtered build of RHEL7, you'd have to export them individually and then combine them into a singular export. This advanced usage is beyond the scope of this document.
 
-Now that you understand how the architecture of the Red Hat CDN, let's go export some content. 
+Now that you understand how the architecture of the Red Hat CDN, let's go export some content.
