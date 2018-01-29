@@ -414,7 +414,7 @@ hammer product create \
 
 hammer repository create \
   --name='EPEL 7 - x86_64' \
-  --organization "$ORG"
+  --organization "$ORG" \
   --product='Extra Packages for Enterprise Linux' \
   --content-type='yum' \
   --publish-via-http=true \
@@ -750,13 +750,148 @@ EOF
 ~~~
 
 
-Next, copy the subscription manifest to the Satellite. Then import it:
+Next, copy the subscription manifest to the Satellite. Then import it, specifying a new `--repository-url`
 ~~~
-hammer subscription upload --organization "$ORG" --file /root/manifest.zip
+hammer subscription upload \
+  --organization "$ORG" \
+  --file /root/manifest.zip \
+  --repository-url http://cdn.example.com/pub/
 ~~~
+
+**REMEMBER**: the CDN URL is the web-accessible directory that contains the `content` directory.
 
 Next,we'll update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. In our disconnected environment, it is not guaranteed to have access to our CDN mirror, so the `on_demand` or `background` download policies would be less than useful here. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
 
 ~~~
 hammer settings set --name default_download_policy --value immediate
+~~~
+
+
+
+
+Now that we have our disconnected Satellite setup properly, let's enable and synchronize some repositories. We need to download at a minimum:
+
+- Red Hat Enterprise Linux  (+ the Optional and Extras repos)
+- Red Hat Enterprise Linux Kickstart repositories (to provision systems)
+- Red Hat Satellite Tools (client tools)
+- Red Hat Satellite Maintenance repository
+- Red Hat Satellite
+- Red Hat Software Collections (dependency for Satellite)
+
+Enable any **other** repositories that will be needed in the disconnected environment here.
+
+~~~
+hammer repository-set enable --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --releasever='7Server' \
+  --name 'Red Hat Enterprise Linux 7 Server (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --releasever='7Server' \
+  --name 'Red Hat Enterprise Linux 7 Server - Optional (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --name 'Red Hat Enterprise Linux 7 Server - Extras (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --releasever='7.4' \
+  --name 'Red Hat Enterprise Linux 7 Server (Kickstart)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --name 'Red Hat Satellite Tools 6 Beta (for RHEL 7 Server) (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --name 'Red Hat Satellite Maintenance 6 (for RHEL 7 Server) (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Satellite' \
+  --basearch='x86_64' \
+  --name 'Red Hat Satellite 6.3 (for RHEL 7 Server) (RPMs)'
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch='x86_64' \
+  --releasever=7Server \
+  --name 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server'
+
+~~~
+
+On the disconnected Satellite, we need to set all repositories to have `mirror on sync` disabled.
+Mirror on sync is a functionality that ensured that a downstream repository (such as in Satellite 6) matches what the upstream repository (the CDN) contains. This is useful when there are issues with a repository on the CDN, but makes the process of building a disconnected Satellite more difficult. As we'll be incrementally adding content to our CDN mirror, we need Satellite to maintain all of the content. (Both what is current and what has been previously downloaded)
+
+Run the following on the disconnected Satellite to set all current repositories to have mirror on sync disabled:
+
+~~~
+for repo in $(hammer --password redhat --output csv repository list --organization 'RedHat' | cut -f 1 -d ',' | tail -n +2 | tr '\n' ' '); do hammer repository update --id $repo --mirror-on-sync false; done
+~~~
+
+The above needs to be run every time a new repository is added. I've opened this [RFE](https://bugzilla.redhat.com/show_bug.cgi?id=1416888) to have the mirror on sync attribute configurable as a policy (similar to the download policies)
+
+Now, let's synchronize them.
+~~~
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server'\
+ --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server - Optional RPMs x86_64 7Server' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server - Extras RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server Kickstart x86_64 7.4' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Satellite Tools 6.2 for RHEL 7 Server RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Satellite Maintenance for RHEL 7 Server RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Satellite'  \
+  --name  'Red Hat Satellite 6.3 for RHEL 7 Server RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Software Collections for RHEL Server' \
+  --name 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server x86_64 7Server' \
+  --async
 ~~~
