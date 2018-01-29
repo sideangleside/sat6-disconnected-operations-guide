@@ -19,6 +19,7 @@ This document is meant as a supplement to the existing product docs. Content for
 - The content management guide
 - The ISS Knowledge article
 - Subscription Manager for the Recovering RHN Addict, part 7
+- The Hammer CLI Guide
 
 ## What is disconnected?
 
@@ -274,4 +275,155 @@ And make sure the SELinux contexts and permissions are correct.
 chcon --verbose --recursive --reference /var/lib/pulp/katello-export/ /exports/
 chmod --verbose --recursive --reference /var/lib/pulp/katello-export/ /exports/
 chown --verbose --recursive --reference /var/lib/pulp/katello-export/ /exports/
+~~~
+
+
+### Enabling and Synchronizing Content
+
+Now that we have our internet connected Satellite setup properly, let's enable and synchronize some repositories. We need to download at a minimum:
+
+- Red Hat Enterprise Linux  (+ the Optional and Extras repos)
+- Red Hat Enterprise Linux Kickstart repositories (to provision systems)
+- Red Hat Satellite Tools (client tools)
+- Red Hat Satellite Maintenance repository
+- Red Hat Satellite
+- Red Hat Software Collections (dependency for Satellite)
+
+Enable any **other** repositories that will be needed in the disconnected environment here.
+
+~~~
+hammer repository-set enable --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --releasever='7Server' \
+  --name 'Red Hat Enterprise Linux 7 Server (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --releasever='7Server' \
+  --name 'Red Hat Enterprise Linux 7 Server - Optional (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --name 'Red Hat Enterprise Linux 7 Server - Extras (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --releasever='7.4' \
+  --name 'Red Hat Enterprise Linux 7 Server (Kickstart)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --name 'Red Hat Satellite Tools 6 Beta (for RHEL 7 Server) (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server' \
+  --basearch='x86_64' \
+  --name 'Red Hat Satellite Maintenance 6 (for RHEL 7 Server) (RPMs)'  
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Satellite' \
+  --basearch='x86_64' \
+  --name 'Red Hat Satellite 6.3 (for RHEL 7 Server) (RPMs)'
+
+hammer repository-set enable \
+  --organization "$ORG" \
+  --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch='x86_64' \
+  --releasever=7Server \
+  --name 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server'
+
+~~~
+
+Now, let's synchronize them.
+~~~
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server RPMs x86_64 7Server'\
+ --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server - Optional RPMs x86_64 7Server' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server - Extras RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Enterprise Linux 7 Server Kickstart x86_64 7.4' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Satellite Tools 6.2 for RHEL 7 Server RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Enterprise Linux Server'  \
+  --name  'Red Hat Satellite Maintenance for RHEL 7 Server RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Satellite'  \
+  --name  'Red Hat Satellite 6.3 for RHEL 7 Server RPMs x86_64' \
+  --async
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Red Hat Software Collections for RHEL Server' \
+  --name 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server x86_64 7Server' \
+  --async
+~~~
+
+Next, we need to enable and synchronize a 3rd party repository. In this case we are using [EPEL](https://fedoraproject.org/wiki/EPEL)
+
+~~~~
+wget -q https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7 \
+  -O /root/RPM-GPG-KEY-EPEL-7
+
+hammer gpg create \
+  --key /root/RPM-GPG-KEY-EPEL-7  \
+  --name 'GPG-EPEL-7' \
+  --organization "$ORG"    
+
+hammer product create \
+  --name='Extra Packages for Enterprise Linux' \
+  --organization "$ORG" \
+  --description 'Extra Packages for Enterprise Linux'
+
+hammer repository create \
+  --name='EPEL 7 - x86_64' \
+  --organization "$ORG"
+  --product='Extra Packages for Enterprise Linux' \
+  --content-type='yum' \
+  --publish-via-http=true \
+  --url=http://dl.fedoraproject.org/pub/epel/7/x86_64/  \
+  --checksum-type=sha256 \
+  --gpg-key=GPG-EPEL-7
+
+hammer repository synchronize \
+  --organization "$ORG" \
+  --product 'Extra Packages for Enterprise Linux'  \
+  --name  'EPEL 7 - x86_64'
 ~~~
