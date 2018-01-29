@@ -258,7 +258,7 @@ Next, copy the subscription manifest to the Satellite. Then import it:
 hammer subscription upload --organization "$ORG" --file /root/manifest.zip
 ~~~
 
-Next,we'll update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. This ensures that all of the content needed for our content exports is synchronized prior to our exports. If the policy is set to `on_demand` (Satellite 6.3's default) or `background`, the content export will be delayed until all of the remaining RPMs are downloaded from the CDN. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
+Next,we'll update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. This ensures that all of the content needed for our content exports is synchronized prior to our exports. If the policy is set to `on_demand` (Satellite 6.3's default) or `background`, the content export will not work. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
 
 ~~~
 hammer settings set --name default_download_policy --value immediate
@@ -643,12 +643,120 @@ When exporting Red Hat content it is expected that one exports a content view. T
 
 You can use _any_ content view as a source of content for a disconnected Satellite. Under most circumstances you want to use the **Default Organization View**, which is the representation of the repositories which are currently downloaded within the organization.
 
-This is the preferred way to export Red Hat content for usage with another Satellite. While you _can_ export a content view of your own creation, it is to be noted that :
+This is the preferred way to export Red Hat content for usage with another Satellite. It allows you to synchronize using the same workflows as a connected user of Satellite (i.e. via the **Red Hat Repositories** page). While you _can_ export a content view of your own creation, it is to be noted that :
 
 - what is being exported is the content after filtering and publication.
 - the content view's definition (and filters) are not exported.
-- The relationship between an exported content view and a Satellite organizations CDN URL is 1:1
+- The relationship between an exported content view and a Satellite organization's CDN URL is 1:1
 
 If you'd wanted to create (for example) two content views, one representing a filtered build of RHEL6, and another representing a filtered build of RHEL7, you'd have to export them individually and then combine them into a singular export. This advanced usage is beyond the scope of this document.
 
 Now that you understand how the architecture of the Red Hat CDN, let's go export some content.
+
+### Exporting content and making it available in the disconnected environment.
+
+Now that our content has synchronized completely (), let's export it.
+
+On our connected Satellite, let's export the **Default Organization View**
+
+~~~
+hammer content-view version export \
+  --organization "$ORG" \
+  --content-view "Default Organization View" \
+  --version "1.0"
+~~~
+
+<FINISH THIS WHEN CONTENT FINISHES EXPORTING>
+
+### Changes to the installation process for disconnected Satelllites
+
+As Disconnected Satellite's cannot reach either subscription.rhsm.redhat.com or cdn.redhat.com, we need to
+
+- provide a alternative location to sync content from (which was done in the section above)
+- provide a means to install the Satellite software and any dependencies that it may need
+
+### Installing the Disconnected Satellite
+
+Using the RHEL7 Installation DVD, install RHEL on **disconnected.example.com** as per the Satellite installation guide. Basically, this is going to be a @Base installation of RHEL. Satellite will install addition packages as needed.
+
+After setting up hostname, IP, we'll need to configure our yum repos so that we can install the Satellite Software. Note: we are neither using the Satellite installation ISO nor are we using self-registration for ongoing updates.
+
+
+Configure `/etc/yum.repos.d/sat6.repo` with the following content. Our CDN mirror, in addition to being a content source for Satellite to sync from, is _also_ usable as standard yum repositories.
+
+~~~
+[rhel]
+name=architectural
+baseurl=http://cdn.example.com/pub/content/dist/rhel/server/7/7Server/x86_64/os/
+gpgcheck=1
+enabled=1
+
+[rhscl]
+name=RHSCL
+baseurl=http://cdn.example.com/pub/content/dist/rhel/server/7/7Server/x86_64/rhscl/1/os/
+gpgcheck=1
+enabled=1
+
+[satellite]
+name=Satellite
+baseurl=http://cdn.example.com/pub/content/dist/rhel/server/7/7Server/x86_64/satellite/6.2/os/
+gpgcheck=1
+enabled=1
+
+[satellite-maint]
+name=Satellite Maintenance
+baseurl=http://cdn.example.com/pub/content/dist/rhel/server/7/7Server/x86_64/satellite/6.2/os/
+gpgcheck=1
+enabled=1
+
+~~~
+
+And install the Satellite software and `foreman-maintain`, the Satellite maintenance tool.
+
+~~~
+yum clean all
+yum makecache
+yum install satellite -y
+yum install rubygem-foreman_maintain -y
+yum update -y
+~~~
+
+Next we'll install Satellite, setting our default organization to **RedHat**, default location to **RDU** and default admin password to **redhat** (adjust to your needs)
+~~~
+satellite-installer --scenario satellite -v \
+  --foreman-initial-organization RedHat \
+  --foreman-initial-location RDU \
+  --foreman-admin-password redhat
+~~~
+
+Next, we'll setup our `.bashrc` and hammer config, so that we don't have to provide these parameters on every invocation of the CLI.
+
+~~~
+echo "ORG=RedHat" >> ~/.bashrc
+echo "LOCATION=RDU" >> ~/.bashrc
+echo "DOMAIN=example.com" >> ~/.bashrc
+echo "SATELLITE=$(hostname -f)" >> ~/.bashrc
+source ~/.bashrc
+
+mkdir ~/.hammer/
+cat > ~/.hammer/cli_config.yml<<EOF
+:foreman:
+    :host: 'https://$(hostname)/'
+    :username: 'admin'
+    :password: 'redhat'
+
+EOF
+
+~~~
+
+
+Next, copy the subscription manifest to the Satellite. Then import it:
+~~~
+hammer subscription upload --organization "$ORG" --file /root/manifest.zip
+~~~
+
+Next,we'll update some parameters to make our disconnected workflows a bit easier. Firstly, we need to set our default download policy to `immediate`. In our disconnected environment, it is not guaranteed to have access to our CDN mirror, so the `on_demand` or `background` download policies would be less than useful here. Let's just set this now and get it out of the way. More on download policies can be found in [Satellite 6.2 Feature Overview: Lazy Sync](https://access.redhat.com/articles/2695861)
+
+~~~
+hammer settings set --name default_download_policy --value immediate
+~~~
