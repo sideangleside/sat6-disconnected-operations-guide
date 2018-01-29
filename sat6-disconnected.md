@@ -398,7 +398,7 @@ hammer repository synchronize \
 
 Next, we need to enable and synchronize a 3rd party repository. In this case we are using [EPEL](https://fedoraproject.org/wiki/EPEL)
 
-~~~~
+~~~
 wget -q https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7 \
   -O /root/RPM-GPG-KEY-EPEL-7
 
@@ -427,3 +427,228 @@ hammer repository synchronize \
   --product 'Extra Packages for Enterprise Linux'  \
   --name  'EPEL 7 - x86_64'
 ~~~
+
+At this point we have Red Hat Enterprise Linux & EPEL synchronizing, we can prepare to export it, but first a word from our CDN overlords.
+
+
+### Architecture of the Red Hat CDN (and why it matters to a disconnected user of Satellite)
+
+The Red Hat Content Delivery Network (henceforth known as the CDN) is the source of Red Hat content for Satellite 6. Understanding the structure of the Red Hat CDN is absolutely **critical** to properly supporting a disconnected Satellite.
+
+It is important enough that I'll say it again,
+
+~~~
+Understanding the structure of the Red Hat CDN is absolutely
+**critical** to properly supporting a disconnected Satellite.
+~~~
+
+#### What is the Red Hat CDN?
+
+The Red Hat Content Delivery Network, nominally accessed via cdn.redhat.com is a geographically distributed series of static webservers, which contain content and errata that is designed to be consumed by systems. This content can be consumed directly (such as via a system registered via Red Hat Subscription Management) OR mirrored via on premise solution, such as Red Hat Satellite 6. The Red Hat Content Delivery network is protected by x.509 certificate authentication, to
+ensure that only valid users can access it.
+
+In the case of a system registered to Red Hat Subscription Management, the attached subscriptions govern which subset of the CDN the system can access. In the case of Satellite 6, the subscriptions that are attached to the subscription manifest govern which subset of the CDN the system can access.
+
+#### Directory Structure of the CDN.
+
+Now that you understand what the CDN is, let's take a look at a CDN mirror to see what the directory structure looks like:
+
+~~~
+$ tree -d -L 11
+└── content
+    ├── beta
+    │   └── rhel
+    │       └── server
+    │           └── 7
+    │               └── x86_64
+    │                   └── sat-tools
+    │                       └── 6
+    └── dist
+        └── rhel
+            └── server
+                └── 7
+                ├── 7.4
+                │   └── x86_64
+                │       └── kickstart
+                └── 7Server
+                    └── x86_64
+                        └── os
+
+~~~
+
+This directory structure is important and has the following meaning
+
+- Top-level directory (always named _content_)
+  - Second Level Directory (What is the lifecycle of this content? Common directories include _beta_ (for Beta code), _dist_ (for Production Bits) and _eus_ (For Extended Update Support bits))
+    - Third Level Directory (which product. Usually _rhel_ for Red Hat Enterprise Linux)
+      - Fourth Level Directory (Which Variant of the product. For Red Hat Enterprise Linux this includes _server_, _workstation_, and _computenode_ )
+        - Fifth Level Directory (Major version, such as _5_,_6_, or _7_)
+          - Sixth Level Directory (Release version  such as _7.0_, _7.1_, and _7Server_)
+            - Seventh Level Directory (Base architecture, such as _i386_ or _x86_64_ )
+              - Eighth Level Directory (repository name such as _kickstart_, _optional_, _rhscl_, etc). Some components have additional subdirectories, and those may vary.
+
+This directory structure is also used in the subscription manifest. We can look at a subscription manifest to determine which directories of the CDN each subscription has access to.
+
+**NOTE:** The output below has been shortened for brevity.
+
+~~~
+rct cat-manifest export.zip
++-------------------------------------------+
+	Manifest
++-------------------------------------------+
+
+General:
+	Server:
+	Server Version: 0.9.51.15-1
+	Date Created: 2016-09-14T14:27:26.081+0000
+	Creator: [REDACTED]
+
+Consumer:
+	Name: [REDACTED]
+	UUID: [REDACTED]
+	Type: satellite
+Subscription:
+	Name: Red Hat Enterprise Linux Server, Standard (Physical or Virtual Nodes)
+	Quantity: 100
+	Created: 2016-07-06T00:42:43.000+0000
+	Start Date: 2016-07-04T04:00:00.000+0000
+	End Date: 2017-07-04T03:59:59.000+0000
+	Service Level: Standard
+	Service Type: L1-L3
+	Architectures: x86_64,ppc64le,ppc64,ia64,ppc,s390,x86,s390x
+	SKU: RH00004
+	Contract: [REDACTED]
+	Order: [REDACTED]
+	Account: [REDACTED]
+	Virt Limit:
+	Requires Virt-who: False
+	Entitlement File: export/entitlements/8a99f98355af32300155bda82c721c90.json
+	Certificate File: export/entitlement_certificates/4019380680377493250.pem
+	Certificate Version: 3.2
+	Provided Products:
+		69: Red Hat Enterprise Linux Server
+		176: Red Hat Developer Toolset (for RHEL Server)
+		180: Red Hat Beta
+		201: Red Hat Software Collections (for RHEL Server)
+		205: Red Hat Software Collections Beta (for RHEL Server)
+		240: Oracle Java (for RHEL Server)
+		271: Red Hat Enterprise Linux Atomic Host
+		272: Red Hat Enterprise Linux Atomic Host Beta
+		273: Red Hat Container Images
+		274: Red Hat Container Images Beta
+		317: dotNET on RHEL (for RHEL Server)
+		318: dotNET on RHEL Beta (for RHEL Server)
+	Content Sets:
+		/content/dist/rhel/server/5/$releasever/$basearch/cf-tools/1/os
+		/content/dist/rhel/server/5/$releasever/$basearch/cf-tools/1/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/devtoolset/2/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/devtoolset/2/os
+		/content/dist/rhel/server/5/$releasever/$basearch/devtoolset/2/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/devtoolset/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/devtoolset/os
+		/content/dist/rhel/server/5/$releasever/$basearch/devtoolset/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/iso
+		/content/dist/rhel/server/5/$releasever/$basearch/kickstart
+		/content/dist/rhel/server/5/$releasever/$basearch/oracle-java/iso
+		/content/dist/rhel/server/5/$releasever/$basearch/oracle-java/os
+		/content/dist/rhel/server/5/$releasever/$basearch/oracle-java/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/os
+		/content/dist/rhel/server/5/$releasever/$basearch/productivity/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/productivity/os
+		/content/dist/rhel/server/5/$releasever/$basearch/productivity/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/rh-common/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/rh-common/iso
+		/content/dist/rhel/server/5/$releasever/$basearch/rh-common/os
+		/content/dist/rhel/server/5/$releasever/$basearch/rh-common/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/rhev-agent/3/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/rhev-agent/3/os
+		/content/dist/rhel/server/5/$releasever/$basearch/rhev-agent/3/source/SRPMS
+		/content/dist/rhel/server/5/$releasever/$basearch/rhn-tools/debug
+		/content/dist/rhel/server/5/$releasever/$basearch/rhn-tools/iso
+		/content/dist/rhel/server/5/$releasever/$basearch/rhn-tools/os
+		/content/dist/rhel/server/5/$releasever/$basearch/rhn-tools/source/SRPMS
+		/content/dist/rhel/server/6/$releasever/$basearch/cf-tools/1/debug
+		/content/dist/rhel/server/6/$releasever/$basearch/cf-tools/1/os
+		/content/dist/rhel/server/6/$releasever/$basearch/cf-tools/1/source/SRPMS
+		/content/dist/rhel/server/6/$releasever/$basearch/debug
+		/content/dist/rhel/server/6/$releasever/$basearch/devtoolset/2/debug
+		/content/dist/rhel/server/6/$releasever/$basearch/devtoolset/2/os
+		/content/dist/rhel/server/6/$releasever/$basearch/devtoolset/2/source/SRPMS
+		/content/dist/rhel/server/6/$releasever/$basearch/devtoolset/debug
+		/content/dist/rhel/server/6/$releasever/$basearch/devtoolset/os
+		/content/dist/rhel/server/6/$releasever/$basearch/devtoolset/source/SRPMS
+		/content/dist/rhel/server/6/$releasever/$basearch/insights-client/1/debug
+		/content/dist/rhel/server/6/$releasever/$basearch/insights-client/1/os
+		/content/dist/rhel/server/6/$releasever/$basearch/insights-client/1/source/SRPMS
+		/content/dist/rhel/server/7/$releasever/$basearch/rhn-tools/debug
+		/content/dist/rhel/server/7/$releasever/$basearch/rhn-tools/iso
+		/content/dist/rhel/server/7/$releasever/$basearch/rhn-tools/os
+		/content/dist/rhel/server/7/$releasever/$basearch/rhn-tools/source/SRPMS
+		/content/dist/rhel/server/7/$releasever/$basearch/rhs-client/debug
+		/content/dist/rhel/server/7/$releasever/$basearch/rhs-client/os
+		/content/dist/rhel/server/7/$releasever/$basearch/rhs-client/source/SRPMS
+		/content/dist/rhel/server/7/$releasever/$basearch/rhscl/1/containers
+		/content/dist/rhel/server/7/$releasever/$basearch/rhscl/1/debug
+		/content/dist/rhel/server/7/$releasever/$basearch/rhscl/1/iso
+		/content/dist/rhel/server/7/$releasever/$basearch/rhscl/1/os
+
+~~~
+
+#### Listing files
+
+Every directory from the Top-Level Directory (_content_) to the Eighth Level Directory (_optional_, _rhscl_ , etc) **MUST** contain a plain-text file, named **listing**, which contains, one per line, a listing of the subdirectories that the current directory contains. These are used by Red Hat Satellite 6 to determine which content does the CDN contain. See Below:
+
+~~~
+[root@cdn content]# ls
+beta  dist  eus  listing
+[root@cdn content]# cat listing
+beta
+dist
+eus
+
+[root@cdn content]# cd dist
+[root@cdn dist]# ls
+cf-me  listing  rhel
+[root@cdn dist]# cat listing
+cf-me
+rhel
+~~~
+
+If the listing files are incorrect, you will NOT see the proper repositories as being available for synchronization.
+
+#### Connected versus Disconnected Satellites.
+
+The process of synchronizing a Satellite is exactly the same for disconnected versus connected Satellite users. The *only* noticeable difference between a connected Satellite (which can reach cdn.redhat.com) and a disconnected Satellite (which cannot) is:
+
+- The disconnected satellite has a CDN URL defined which is NOT cdn.redhat.com
+- The administrator has to create a local mirror of cdn.redhat.com that the Satellite can synchronize from.
+
+
+### Understanding the Inter Satellite Sync capabilities within Satellite
+
+Inter-Satellite Sync (link to 6.2 ISS Feature Overview), introduced the ability to export RPM repository content in one of two ways:
+
+- Export a single repository
+- Export a specific version of a content view (including the **Default Organization View**)
+
+Depending on your use case, you will use either or both of these capabilities. When exporting non-Red Hat content, it is generally advisable to export on a per-repository basis.
+
+When exporting Red Hat content it is expected that one exports a content view. There are a couple of reasons for this:
+
+- As a content view is a collection of repositories, exporting a content view allows you to export all of the repositories as a unit.
+- Content views are exported with all of the correct _listing_ files and as such is directly usable as a mirror of cdn.redhat.com.
+
+**Which content view to use?**
+
+You can use _any_ content view as a source of content for a disconnected Satellite. Under most circumstances you want to use the **Default Organization View**, which is the representation of the repositories which are currently downloaded within the organization.
+
+This is the preferred way to export Red Hat content for usage with another Satellite. While you _can_ export a content view of your own creation, it is to be noted that :
+
+- what is being exported is the content after filtering and publication.
+- the content view's definition (and filters) are not exported.
+- The relationship between an exported content view and a Satellite organizations CDN URL is 1:1
+
+If you'd wanted to create (for example) two content views, one representing a filtered build of RHEL6, and another representing a filtered build of RHEL7, you'd have to export them individually and then combine them into a singular export. This advanced usage is beyond the scope of this document.
+
+Now that you understand how the architecture of the Red Hat CDN, let's go export some content. 
