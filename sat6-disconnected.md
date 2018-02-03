@@ -666,9 +666,46 @@ hammer content-view version export \
   --version "1.0"
 ~~~
 
-<FINISH THIS WHEN CONTENT FINISHES EXPORTING>
+On our connected Satellite, let's analyze the content that we've just exported in the `/exports` directory
 
-### Changes to the installation process for disconnected Satelllites
+~~~
+[root@connected exports]#tree -d -L 11
+.
+└── RedHat-Default_Organization_View-v1.0
+    └── RedHat
+        └── Library
+            └── content
+                └── dist
+                    └── rhel
+                        └── server
+                            └── 7
+                                ├── 7.4
+                                │   └── x86_64
+                                │       └── kickstart
+                                └── 7Server
+                                    └── x86_64
+                                        ├── extras
+                                        ├── optional
+                                        ├── os
+                                        ├── satellite
+                                        ├── rhscl
+                                        └── sat-tools
+
+~~~
+
+Next, we need to copy this over to our disconnected environment using whatever means you have (either USB Drive, rsync or similar methods). **NOTE**: we only need to copy the `content` directory and all of its subdirectories. In our disconnected environment we have two distinct systems that will be used.
+
+* **disconnected.example.com** - our disconnected Satellite 6 server.
+* **cdn.example.com**  - a web server that will function as our disconnected CDN. This server can be any webserver, including the web server that is included with the Satellite.  In this example, **cdn.example.com** is a RHEL7 web server that has the `/var/www/html/pub/` directory available as `http://cdn.example.com/pub/`
+
+In this example, we are using separate server to function as the CDN mirror as it:
+
+- makes this document less confusing.
+- Allows the Satellite faster synchronization as it is not reading and writing from the same disks.
+
+On our CDN mirror **cdn.example.com**, we've copied the `content` directory to the `/var/www/html/pub` directory. It is how ready to be used as both a CDN mirror and as generic yum repositories for software installation.
+
+### Changes to the installation process for disconnected Satellites
 
 As Disconnected Satellite's cannot reach either subscription.rhsm.redhat.com or cdn.redhat.com, we need to
 
@@ -686,7 +723,7 @@ Configure `/etc/yum.repos.d/sat6.repo` with the following content. Our CDN mirro
 
 ~~~
 [rhel]
-name=architectural
+name=RHEL
 baseurl=http://cdn.example.com/pub/content/dist/rhel/server/7/7Server/x86_64/os/
 gpgcheck=1
 enabled=1
