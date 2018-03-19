@@ -1,19 +1,19 @@
-## Introduction
+# Introduction
 
 Welcome to the Red Hat Satellite 6 disconnected operations guide.  This guide intends to provide guidance on configuration and operations of Red Hat Satellite 6 servers configured in a disconnected environment.
 
-### Version Support
+## Version Support
 
 * Satellite 6.3 - This document was developed on on Satellite 6.3 and 6.3 (beta)
 * Satellite 6.2.13+ - This document has been tested on this version and any tweaks will be identified in the document (TBD)
 
-### Intended Audience
+## Intended Audience
 
 * You love Satellite and all things Satellite
 * You work in an environment with a disconnected Satellite
 * You work in an environment where you want a disconnected Satellite
 
-### Source Material / Additonal Reading
+## Source Material / Additonal Reading
 
 This document is meant as a supplement to the existing product docs. Content for this guide was sourced from (and inspired by)
 
@@ -24,7 +24,7 @@ This document is meant as a supplement to the existing product docs. Content for
 * Subscription Manager for the Recovering RHN Addict, part 7
 * The Hammer CLI Guide
 
-## Disconnected Operations Methods
+# Disconnected Operations Methods
 
 ## What is disconnected?
 
@@ -36,19 +36,34 @@ In the scope of Red Hat Satellite, **disconnected** refers to any Satellite whic
 * Completely Airgapped systems which cannot connect to the internet
 
 
-This guide will cover how to:
+## What is covered in this guide
 
-* Plan your disconnected environment from an architectural and subscription perspective
+* Planning your disconnected environment from an architectural and subscription perspective
 * Installing your first disconnected environment
 * Importing content for the first time
 * Maintaining the disconnected environment and its content over time.
 
-This document will be written 'case-study' style and is intended to be a cookbook.
+This document will be written 'case-study' style and is intended to be a cookbook.  For example purposes these will be divided into two separate scenarios (1 & 2).  Each scenario will cover one of the two most commonly encountered scenarios and explain how to plan accordingly.
 
 
 ## Planning
 
-There are two major mechanisms that can be used to acquire Red Hat content, **Content ISOs** or **Red Hat Satellite Inter-Satellite-Sync**
+There are two major mechanisms that can be used to acquire Red Hat content, **Red Hat Satellite Inter-Satellite-Sync** and **Content ISOs**.  Scenario 1 covers the preffered method of using Inter-Satellite-Sync, while scenario 2 covers the Content ISOs method.
+
+
+### Scenario 1
+
+The preferred method of disconnected operations is the Inter-Satellite-Sync.  In this scenario , a user can deploy a Satellite which *is* able to connect to cdn.redhat.com and use that Satellite to export content suitable for importing into another (disconnected) Satellite.
+
+![alt text](https://github.com/sideangleside/sat6-disconnected-operations-guide/raw/master/images/Sat6_Disconnected_with_Connected_Satellite.png "Disconnected Satellite with Connected Satellite")
+
+A brief outline of operations is:
+1. Synchronize products for which they have a valid subscription for to their internet connected satellite.
+2. Export that content using the Inter-Satellite-Sync Feature
+3. Tranfer that content to the disconnected Satellite (by either exporting to CD/DVD ISO OR by a disk export)
+
+
+### Scenario 2
 
 Content ISOs can be downloaded from the [Red Hat Customer Portal](https://access.redhat.com/ "Red Hat Customer Portal"). Content ISOs are periodic snapshots of a product's repositories, made on a scheduled basis (usually every quarter give or take). Content ISOs can be downloaded from the customer portal, extracted and used to populate a disconnected Satellite.
 
@@ -60,27 +75,18 @@ In this scenario, the user would:
 2. Burn the content ISOs to CD or DVD.
 3. Transit those ISOs into their disconnected environment and import it into a Satellite
 
-Alternatively, a user can deploy a Satellite which *is* able to connect to cdn.redhat.com and use that Satellite to export Content suitable for importing into another Satellite which is disconnected.  
 
-![alt text](https://github.com/sideangleside/sat6-disconnected-operations-guide/raw/master/images/Sat6_Disconnected_with_Connected_Satellite.png "Disconnected Satellite with Connected Satellite")
-
-In this scenario, the user would
-1. synchronize products for which they have a valid subscription for to their internet connected satellite.
-2. Export that content using the Inter-Satellite-Sync Feature
-3. transit that content to the disconnected Satellite (by either exporting to CD/DVD ISO OR by a disk export)
-
-There are pros & cons to each approach
-
+### Pros and Cons
 
 Method | Pros | Cons
 -------- | -------- | --------
 Inter Satellite Sync | Can export any/all content which you have a valid subscription for. | Cost (both hardware & subscription) for the internet connected Satellite.
 Content ISOs | Do not require an Internet connected Satellite. | Aren't released often. Aren't available for all products.
 
-
 It is *strongly* recommended to use **Inter Satellite Sync** as it puts the total control over when content is exported/imported in the hands of the user. Content import / export using content ISOs will be covered in an Appendix to this doc.
 
-### Planning Subscriptions & Manifests.
+
+## Planning Subscriptions & Manifests.
 
 In our first case study, Darrell Disconnected, a systems administrator at Example Corp, wishes to support 2 Satellite servers, one which will be used to support systems in the disonnected environment, and  one which will be internet connected with the intention of using it to export connect. Additionally, Darrell needs to manage 100 Red Hat virtual machines in the disconnected environment.
 
