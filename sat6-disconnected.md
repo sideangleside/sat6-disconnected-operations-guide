@@ -149,8 +149,8 @@ The `/var/lib/pulp/katello-export` directory is the final storage location for a
 
  This directory can be changed if necessary:
 
-- In the UI, changing the pulp_export_destination option, under Administer->Settings->Katello.
-- via Hammer `hammer settings set --name pulp_export_destination --value /var/www/html/pub/exports/``
+- In the UI, changing the `pulp_export_destination` option, under Administer->Settings->Katello.
+- via Hammer `hammer settings set --name pulp_export_destination --value /var/www/html/pub/exports/`
 
 
 
