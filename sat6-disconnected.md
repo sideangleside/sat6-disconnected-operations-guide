@@ -4,7 +4,7 @@ Table of Contents
  * [Introduction](#introduction)
     * [Version Support](#version-support)
     * [Intended Audience](#intended-audience)
-    * [Source Material / Additonal Reading](#source-material--additonal-reading)
+    * [Source Material / Additional Reading](#source-material--additional-reading)
  * [Disconnected Operations Methods](#disconnected-operations-methods)
     * [What is disconnected?](#what-is-disconnected)
     * [What is covered in this guide](#what-is-covered-in-this-guide)
@@ -43,7 +43,7 @@ Welcome to the Red Hat Satellite 6 disconnected operations guide.  This guide in
 * You work in an environment with a disconnected Satellite
 * You work in an environment where you want a disconnected Satellite
 
-## Source Material / Additonal Reading
+## Source Material / Additional Reading
 
 This document is meant as a supplement to the existing product docs. Content for this guide was sourced from (and inspired by)
 
@@ -63,7 +63,7 @@ In the scope of Red Hat Satellite, **disconnected** refers to any Satellite whic
 
 * Organizational policies prohibiting systems from accessing the internet
 * Closed internal networks with limited proxy access to the internet
-* Completely Airgapped systems which cannot connect to the internet
+* Completely Air gaped systems which cannot connect to the internet
 
 
 ## What is covered in this guide
@@ -78,7 +78,7 @@ This document will be written 'case-study' style and is intended to be a cookboo
 
 ## Planning
 
-There are two major mechanisms that can be used to acquire Red Hat content, **Red Hat Satellite Inter-Satellite-Sync** and **Content ISOs**.  Scenario 1 covers the preffered method of using Inter-Satellite-Sync, while scenario 2 covers the Content ISOs method.
+There are two major mechanisms that can be used to acquire Red Hat content, **Red Hat Satellite Inter-Satellite-Sync** and **Content ISOs**.  Scenario 1 covers the preferred method of using Inter-Satellite-Sync, while scenario 2 covers the Content ISOs method.
 
 
 ### Scenario 1
@@ -90,7 +90,7 @@ The preferred method of disconnected operations is the Inter-Satellite-Sync.  In
 A brief outline of operations is:
 1. Synchronize products for which they have a valid subscription for to their internet connected satellite.
 2. Export that content using the Inter-Satellite-Sync Feature
-3. Tranfer that content to the disconnected Satellite (by either exporting to CD/DVD ISO OR by a disk export)
+3. Transfer that content to the disconnected Satellite (by either exporting to CD/DVD ISO OR by a disk export)
 
 
 ### Scenario 2
@@ -118,7 +118,7 @@ It is *strongly* recommended to use **Inter Satellite Sync** as it puts the tota
 
 ## Planning Subscriptions & Manifests.
 
-In our first case study, Darrell Disconnected, a systems administrator at Example Corp, wishes to support 2 Satellite servers, one which will be used to support systems in the disonnected environment, and  one which will be internet connected with the intention of using it to export connect. Additionally, Darrell needs to manage 100 Red Hat virtual machines in the disconnected environment.
+In our first case study, Darrell Disconnected, a systems administrator at Example Corp, wishes to support 2 Satellite servers, one which will be used to support systems in the disconnected environment, and  one which will be internet connected with the intention of using it to export connect. Additionally, Darrell needs to manage 100 Red Hat virtual machines in the disconnected environment.
 
 **Which subscriptions to purchase?**
 
@@ -131,7 +131,7 @@ Subscription | Quantity | Purpose
 -------- | -------- | --------
 MCT1650 - Red Hat Satellite Starter Pack | 1| Internet Connected Satellite for exporting content.
 MCT0370 - Red Hat Satellite | 1 | Disconnected Satellite
-RH00008 - Red Hat Enterprise Linux with Smart Management (Physical or VirtualNodes) | 50 | RHEL + Smart Management Subscriptions for the managed Nodes.
+RH00008 - Red Hat Enterprise Linux with Smart Management (Physical or Virtual Nodes) | 50 | RHEL + Smart Management Subscriptions for the managed Nodes.
 
 Note: As the internet connected Satellite is only being used to sync/export content, Darell opted to get a Satellite Starter Pack, which is lower cost. Also, the RH00008 Subscriptions are example, and indicative of the deploy. Your subscriptions will vary. (It is only the Satellite subscriptions that matter.)
 
